@@ -1,0 +1,8 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pymongo[srv]==4.7.3
+motor==3.3.2 # Async MongoDB driver
+python-multipart==0.0.9 # For file uploads
+Pillow==10.3.0 # Basic image handling if needed (e.g., resizing previews)
+python-dotenv==1.0.1
+gunicorn
