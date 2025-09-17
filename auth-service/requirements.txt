@@ -1,0 +1,10 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
+passlib[bcrypt]==1.7.4 # Includes bcrypt for password hashing
+python-jose[cryptography]==3.3.0 # Includes PyJWT for JWT handling
+python-dotenv==1.0.1
+alembic==1.13.1 # Added for database migrations
+asyncpg==0.29.0 # Async driver for PostgreSQL
+gunicorn
