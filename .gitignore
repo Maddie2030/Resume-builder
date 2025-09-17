@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python/
+venv/
+.venv/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+
+# Environment variables
+.env
+.env.*local
+*.env
+*.env.development
+*.env.production
+
+# Docker
+*.DS_Store
+.dockerignore
+
+# IDE specific files
+.idea/          # IntelliJ IDEA
+.vscode/        # VS Code (if not shared workspace settings)
+*.iml           # IntelliJ IDEA module files
+*.swp           # Vim swap files
+*~              # Emacs backup files
+
+# OS generated files
+.DS_Store
+.Trashes
+Thumbs.db
+
+# Outputs and temporary files
+*/static/outputs/ # Folder for generated images/PDFs

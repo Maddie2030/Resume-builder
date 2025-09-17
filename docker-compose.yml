@@ -1,0 +1,275 @@
+services:
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    # Production Command: Use Gunicorn with Uvicorn workers
+    command: gunicorn app.main:app --workers 5 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    # Remove development-only volume mounts
+    # volumes:
+    # - ./api-gateway:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - TEMPLATE_SERVICE_URL=http://template-service:8002
+      - RENDER_SERVICE_URL=http://render-service:8003
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - app-network
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      template-service:
+        condition: service_healthy
+      render-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Configure production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  migrate:
+    build: ./auth-service
+    command: alembic upgrade head
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    # Use restart: "on-failure" to only run once on success
+    restart: "on-failure"
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    # Production Command: Use Gunicorn with Uvicorn workers
+    command: gunicorn app.main:app --workers 5 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
+    # Remove development-only volume mounts
+    # volumes:
+    # - ./auth-service:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mongo:
+    image: mongo:6.0
+    container_name: template_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'db.runCommand(\"ping\")' | mongosh --quiet || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  template-service:
+    build: ./template-service
+    container_name: template-service
+    # Production Command: Use Gunicorn with Uvicorn workers
+    command: gunicorn app.main:app --workers 5 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8002
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME}?authSource=admin
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8002
+    ports:
+      - "8002:8002"
+    volumes:
+      - static_backgrounds:/app/static/backgrounds
+      - static_outputs:/app/static/outputs
+    networks:
+      - app-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --- New Render Service ---
+  render-service:
+    build: ./render-service
+    container_name: render-service
+    # Production Command: Use Gunicorn with Uvicorn workers
+    command: gunicorn app.main:app --workers 5 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8003
+    volumes:
+      - static_backgrounds:/app/static/backgrounds
+      - static_outputs:/app/static/outputs
+    ports:
+      - "8003:8003"
+    # Remove env_file for production and rely on host environment variables
+    # env_file:
+    # - ./render-service/.env
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - template-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --- New Redis for Celery ---
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker-service:
+    build:
+      context: ./worker-service
+    container_name: worker-service
+    command: celery -A app.celery_app worker --loglevel=info -Q render_queue
+    restart: always
+    volumes:
+      - static_backgrounds:/app/static/backgrounds
+      - static_outputs:/app/static/outputs
+    # Remove env_file for production
+    # env_file:
+    # - ./worker-service/.env
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - template-service
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --- Frontend Service ---
+  frontend-service:
+    build: ./frontend-service
+    container_name: frontend-service
+    # Production Command: Serve static assets
+    # command: npm run serve
+    # Remove development-only volume mounts
+    # volumes:
+    # - ./frontend-service:/app
+    # - /app/node_modules
+    ports:
+      - "80:80" # Map to standard HTTP port 80
+    networks:
+      - app-network
+    # Production health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+  mongo_data:
+  static_backgrounds:
+  static_outputs:
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,70 @@
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom button animations */
+.btn-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Form focus styles */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Text gradient */
+.text-gradient {
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Resume preview specific styles */
+.resume-preview {
+  font-family: 'Times New Roman', serif;
+  line-height: 1.6;
+}
+
+.resume-preview h1 {
+  font-size: 24pt;
+  font-weight: bold;
+}
+
+.resume-preview h2 {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-bottom: 8pt;
+}
+
+.resume-preview h3 {
+  font-size: 12pt;
+  font-weight: bold;
+  margin-bottom: 4pt;
+}
+
+.resume-preview p {
+  font-size: 11pt;
+  margin-bottom: 6pt;
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
